@@ -1,10 +1,13 @@
 package wasm3
 
 /*
-#cgo darwin CFLAGS: -Iinclude
+#cgo CFLAGS: -Iinclude
 #cgo darwin LDFLAGS: -L${SRCDIR}/lib/darwin -lm3
-#cgo linux CFLAGS: -Iinclude
-#cgo linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
+#cgo !android,linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
+#cgo android,arm LDFLAGS: -L${SRCDIR}/lib/android/armeabi-v7a -lm3 -lm
+#cgo android,arm64 LDFLAGS: -L${SRCDIR}/lib/android/arm64-v8a -lm3 -lm
+#cgo android,386 LDFLAGS: -L${SRCDIR}/lib/android/x86 -lm3 -lm
+#cgo android,amd64 LDFLAGS: -L${SRCDIR}/lib/android/x86_64 -lm3 -lm
 
 #include "wasm3.h"
 #include "m3_api_libc.h"
@@ -19,7 +22,7 @@ typedef uint32_t __wasi_size_t;
 
 IM3Function module_get_function(IM3Module i_module, int index);
 IM3Function module_get_imported_function(IM3Module i_module, int index);
-int call(IM3Function i_function, uint32_t i_argc, int i_argv[]);
+int call(IM3Function i_function, uint32_t i_argc, void* i_argv, void* o_result);
 int get_allocated_memory_length(IM3Runtime i_runtime);
 u8* get_allocated_memory(IM3Runtime i_runtime);
 const void * mowrapper(IM3Runtime runtime, uint64_t * _sp, void * _mem);
@@ -28,6 +31,7 @@ void* m3ApiOffsetToPtr(void* offset, void* _mem);
 const char* function_get_import_module(IM3Function i_function);
 const char* function_get_import_field(IM3Function i_function);
 int findFunction(IM3Function * o_function, IM3Runtime i_runtime, const char * const i_moduleName, const char * const i_functionName);
+void get_function(IM3Function * o_function, IM3Module i_module, int i);
 u8 function_get_arg_type(IM3Function i_function, int index);
 
 typedef struct wasi_iovec_t
@@ -40,9 +44,14 @@ import "C"
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
 	"unsafe"
+)
+
+const (
+	PageSize uint32 = 0x10000
 )
 
 // RuntimeT is an alias for IM3Runtime
@@ -127,6 +136,9 @@ func (r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	if result != nil {
 		return nil, errParseModule
 	}
+	if module.memoryImported {
+		module.memoryImported = false
+	}
 	result = C.m3_LoadModule(
 		r.Ptr(),
 		module,
@@ -166,6 +178,9 @@ func (r *Runtime) AttachFunction(moduleName string, functionName string, signatu
 
 // LoadModule wraps m3_LoadModule and returns a module object
 func (r *Runtime) LoadModule(module *Module) (*Module, error) {
+	if module.Ptr().memoryImported {
+		module.Ptr().memoryImported = false
+	}
 	result := C.m3Err_none
 	result = C.m3_LoadModule(
 		r.Ptr(),
@@ -260,6 +275,14 @@ func (r *Runtime) Memory() []byte {
 func (r *Runtime) GetAllocatedMemoryLength() int {
 	length := C.get_allocated_memory_length(r.Ptr())
 	return int(length)
+}
+
+func (r *Runtime) ResizeMemory(numPages int32) error {
+	err := C.ResizeMemory(r.Ptr(), C.u32(numPages))
+	if err != C.m3Err_none {
+		return errors.New(C.GoString(err))
+	}
+	return nil
 }
 
 // ParseModule is a helper that calls the same function in env.
@@ -365,12 +388,37 @@ func (m *Module) NumFunctions() int {
 	return m.numFunctions
 }
 
+func (m *Module) FunctionNames() []string {
+	functions := make([]string, 0)
+	for i := 0; i < int(m.Ptr().numFunctions); i++ {
+		f := C.module_get_function(m.Ptr(), C.int(i))
+		functions = append(functions, C.GoString(f.name))
+		fmt.Printf("fun: '%v' module: %p\n", C.GoString(f.name), f.module)
+	}
+	return functions
+}
+
 // NumImports provides access to numImports
 func (m *Module) NumImports() int {
 	if m.numImports == -1 {
 		m.numImports = int(m.Ptr().numImports)
 	}
 	return m.numImports
+}
+
+// TODO: Store the CStrings to later free them!
+func (m *Module) LinkRawFunction(moduleName, functionName, signature string, fn unsafe.Pointer) error {
+	_moduleName := C.CString(moduleName)
+	// defer C.free(unsafe.Pointer(_moduleName))
+	_functionName := C.CString(functionName)
+	// defer C.free(unsafe.Pointer(_functionName))
+	_signature := C.CString(signature)
+	// defer C.free(unsafe.Pointer(_signature))
+	result := C.m3_LinkRawFunction(m.Ptr(), _moduleName, _functionName, _signature, (*[0]byte)(fn))
+	if result != nil {
+		return fmt.Errorf(C.GoString(result))
+	}
+	return nil
 }
 
 // GetModule retreive the function's module
@@ -428,68 +476,58 @@ type Function struct {
 }
 
 // FunctionWrapper is used to wrap WASM3 call methods and make the calls more idiomatic
-// TODO: this is very limited, we need to handle input and output types appropriately
-type FunctionWrapper func(args ...interface{}) (int, error)
+type FunctionWrapper func(args ...interface{}) (interface{}, error)
 
 // Ptr returns a pointer to IM3Function
 func (f *Function) Ptr() C.IM3Function {
 	return (C.IM3Function)(f.ptr)
 }
 
-// CallWithArgs wraps m3_CallWithArgs
-func (f *Function) CallWithArgs(args ...string) {
-	length := len(args)
-	cArgs := make([]*C.char, length)
-	for i, v := range args {
-		cVal := C.CString(v)
-		cArgs[i] = cVal
-	}
-	C.m3_CallWithArgs(f.Ptr(), C.uint(length), &cArgs[0])
-}
-
 // Call implements a better call function
-// TODO: support diferent types
-func (f *Function) Call(args ...interface{}) (int, error) {
+func (f *Function) Call(args ...interface{}) (interface{}, error) {
 	length := len(args)
-	if length == 0 {
-		result := C.call(f.Ptr(), 0, nil)
-		if result == -1 {
-			return int(result), errors.New(LastErrorString())
-		}
-		return int(result), nil
-	}
-	cArgs := make([]C.int, length)
+	cArgs := make([]int64, length)
 	for i, v := range args {
-		val := v.(int)
-		n := C.int(val)
-		cArgs[i] = n
-	}
-	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
-	if result == -1 {
-		return int(result), errors.New(LastErrorString())
-	}
-	return int(result), nil
-}
-
-func (f *Function) Call2(args []int) (int, error) {
-	length := len(args)
-	if length == 0 {
-		result := C.call(f.Ptr(), 0, nil)
-		if result == -1 {
-			return int(result), errors.New(LastErrorString())
+		p := unsafe.Pointer(&cArgs[i])
+		switch val := v.(type) {
+		case int:
+			*(*C.i32)(p) = C.i32(val)
+		case int32:
+			*(*C.i32)(p) = C.i32(val)
+		case int64:
+			*(*C.i64)(p) = C.i64(val)
+		case float32:
+			*(*C.f32)(p) = C.f32(val)
+		case float64:
+			*(*C.f64)(p) = C.f64(val)
+		default:
+			return 0, fmt.Errorf("invalid arg type %T", val)
 		}
-		return int(result), nil
 	}
-	cArgs := make([]C.int, length)
-	for i, v := range args {
-		n := C.int(v)
-		cArgs[i] = n
+	var result [8]byte
+	var err C.int
+	if length == 0 {
+		err = C.call(f.Ptr(), 0, nil, unsafe.Pointer(&result[0]))
+	} else {
+		err = C.call(f.Ptr(), C.uint(length), unsafe.Pointer(&cArgs[0]), unsafe.Pointer(&result[0]))
 	}
-	result := C.call(f.Ptr(), C.uint(length), &cArgs[0])
-	if result == -1 {
-		return int(result), errors.New(LastErrorString())
+	if err == -1 {
+		return 0, errors.New(LastErrorString())
 	}
-	return int(result), nil
+	switch f.Ptr().funcType.returnType {
+	case C.c_m3Type_i32:
+		return *(*int32)(unsafe.Pointer(&result[0])), nil
+	case C.c_m3Type_i64:
+		return *(*int64)(unsafe.Pointer(&result[0])), nil
+	case C.c_m3Type_f32:
+		return *(*float32)(unsafe.Pointer(&result[0])), nil
+	case C.c_m3Type_f64:
+		return *(*float64)(unsafe.Pointer(&result[0])), nil
+	case C.c_m3Type_none:
+		return 0, nil
+	default:
+		return 0, errors.New("unexpected return type (go)")
+	}
 }
 
 // Environment wraps a WASM3 environment

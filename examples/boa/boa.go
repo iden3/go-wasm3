@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	golog "log"
 
-	wasm3 "github.com/matiasinsaurralde/go-wasm3"
+	wasm3 "github.com/iden3/go-wasm3"
 )
 
 var (

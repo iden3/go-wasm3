@@ -17,6 +17,16 @@
 #include "wasm3.h"
 #include "m3_config.h"
 
+# if defined(__cplusplus)
+#   define d_m3BeginExternC	    extern "C" {
+#   define d_m3EndExternC	    }
+# else
+#   define d_m3BeginExternC
+#   define d_m3EndExternC
+# endif
+
+d_m3BeginExternC
+
 #if !defined(d_m3ShortTypesDefined)
 typedef double          f64;
 typedef float           f32;
@@ -161,7 +171,7 @@ static const char * const c_waCompactTypes []   = { "0", "i", "I", "f", "F", "v"
 
 
 #define m3Alloc(OPTR, STRUCT, NUM)              m3Malloc ((void **) OPTR, sizeof (STRUCT) * (NUM))
-#define m3RellocArray(PTR, STRUCT, NEW, OLD)    m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
+#define m3ReallocArray(PTR, STRUCT, NEW, OLD)   m3Realloc ((PTR), sizeof (STRUCT) * (NEW), sizeof (STRUCT) * (OLD))
 #define m3Free(P)                               { m3Free_impl((void*)(P)); P = NULL; }
 
 # if d_m3VerboseLogs
@@ -193,8 +203,6 @@ size_t      m3StackGetMax           ();
 void        m3Abort                 (const char* message);
 void        m3NotImplemented        (void);
 
-void        m3Yield                 (void);
-
 M3Result    m3Malloc                (void ** o_ptr, size_t i_size);
 void *      m3Realloc               (void * i_ptr, size_t i_newSize, size_t i_oldSize);
 void        m3Free_impl             (void * o_ptr);
@@ -224,5 +232,7 @@ M3Result    Read_utf8               (cstr_t * o_utf8, bytes_t * io_bytes, cbytes
 size_t      SPrintArg               (char * o_string, size_t i_n, m3stack_t i_sp, u8 i_type);
 
 void        ReportError             (IM3Runtime io_runtime, IM3Module i_module, IM3Function i_function, ccstr_t i_errorMessage, ccstr_t i_file, u32 i_lineNum);
+
+d_m3EndExternC
 
 #endif // m3_core_h

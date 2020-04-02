@@ -4,7 +4,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	wasm3 "github.com/matiasinsaurralde/go-wasm3"
+	wasm3 "github.com/iden3/go-wasm3"
 )
 
 var (
@@ -29,13 +29,21 @@ func TestSum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fn, err := runtime.FindFunction(fnName)
-	if err != nil {
-		t.Fatal(err)
+	{
+		fn, err := runtime.FindFunction(fnName)
+		if err != nil {
+			t.Fatal(err)
+		}
+		result, _ := fn(1, 1)
+		if result.(int32) != 2 {
+			t.Fatal("Result doesn't match")
+		}
 	}
-	result, _ := fn(1, 1)
-	if result != 2 {
-		t.Fatal("Result doesn't match")
+	{
+		// fn, err := module.GetFunctionByName(fnName)
+		// if err != nil {
+		// 	t.Fatal(err)
+		// }
 	}
 }
 

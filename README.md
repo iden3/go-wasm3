@@ -1,27 +1,42 @@
 go-wasm3
 ==
 
-[![GoDoc](https://godoc.org/github.com/matiasinsaurralde/go-wasm3?status.svg)](https://godoc.org/github.com/matiasinsaurralde/go-wasm3)
-[![Build status](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master.svg?style=shield)](https://circleci.com/gh/matiasinsaurralde/go-wasm3/tree/master)
+[![GoDoc](https://godoc.org/github.com/iden3/go-wasm3?status.svg)](https://godoc.org/github.com/iden3/go-wasm3)
 
 Golang wrapper for [WASM3](https://github.com/wasm3/wasm3), WIP.
 
 This is part of a series of WASM-related experiments: [go-wavm](https://github.com/matiasinsaurralde/go-wavm) and [go-wasm-benchmark](https://github.com/matiasinsaurralde/go-wasm-benchmark).
 
+## About this fork
+
+This is a fork of [go-wasm3](https://github.com/matiasinsaurralde/go-wasm3) by
+[matiasinsaurralde](https://github.com/matiasinsaurralde) starting from
+[another fork](https://github.com/ltearno/go-wasm3).
+
+### Changes
+
+- Add android static libraries to allow building in gomobile
+- Add `Runtime.ResizeMemory()` 
+- Add `Module.LinkRawFunction()`
+- Remove `Function.CallWithArgs()`
+- Allow any compatible input/output type in `Function.Call()`
+
 ## Install/build
 
-This package ships with pre-built [`WASM3`](https://github.com/wasm3/wasm3) libraries (static builds) for OS X and Linux. If you want to hack around it, check [the original repository](https://github.com/wasm3/wasm3).
+This package ships with pre-built [`WASM3`](https://github.com/wasm3/wasm3) libraries (static builds) for Linux and Android. If you want to hack around it, check [the original repository](https://github.com/wasm3/wasm3).
+
+Check the [building instructions for Android](https://github.com/iden3/wasm3/blob/feature/android/android/README.md) if you want to rebuild the static libraries.
 
 If you're using one of the mentioned platforms, you may install the package using `go get`:
 
 ```
-$ go get -u github.com/matiasinsaurralde/go-wasm3
+$ go get -u github.com/iden3/go-wasm3
 ```
 
 To inspect or run the little sample use:
 
 ```
-$ cd $GOPATH/src/github.com/matiasinsaurralde/go-wasm3/examples/sum
+$ cd go-wasm3/examples/sum
 $ go build # or "go run sum.go"
 $ ./sum
 ```
@@ -119,7 +134,7 @@ The following Go code will load the WASM module and retrieve the data after call
     fmt.Println(str)
 ```
 
-For more details check [this](https://github.com/matiasinsaurralde/go-wasm3/tree/master/examples/cstring).
+For more details check [this](https://github.com/iden3/go-wasm3/tree/master/examples/cstring).
 
 ## Limitations and future
 
@@ -131,6 +146,6 @@ A Rust wrapper is available [here](https://github.com/Veykril/wasm3-rs).
 
 ## License
 
-[MIT](https://github.com/matiasinsaurralde/go-wasm3/blob/master/LICENSE).
+[MIT](https://github.com/iden3/go-wasm3/blob/master/LICENSE).
 
 [wasm3](https://github.com/wasm3/wasm3/blob/master/LICENSE) is also under this license.

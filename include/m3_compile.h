@@ -11,6 +11,7 @@
 #include "m3_code.h"
 #include "m3_exec_defs.h"
 
+d_m3BeginExternC
 
 enum
 {
@@ -164,6 +165,6 @@ M3Result    Compile_Function            (IM3Function io_function);
 bool        PeekNextOpcode              (IM3Compilation o, u8 i_opcode);
 u16         GetMaxExecSlot              (IM3Compilation o);
 
-//M3Result  Optimize_ConstOp            (IM3Compilation o, u64 i_word, u8 i_waType);
+d_m3EndExternC
 
 #endif // m3_compile_h

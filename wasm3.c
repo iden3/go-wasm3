@@ -64,32 +64,61 @@ u8 function_get_arg_type(IM3Function i_function, int index) {
     return i_function->funcType->argTypes[index];
 }
 
-int call(IM3Function i_function, uint32_t i_argc, int i_argv[]) {
-	int result = 0;
+int call(IM3Function i_function, uint32_t i_argc, void * i_argv, void * o_result) {
 	IM3Module module = i_function->module;
 	IM3Runtime runtime = module->runtime;
 	m3stack_t stack = (m3stack_t)(runtime->stack);
 	IM3FuncType ftype = i_function->funcType;
+	if (i_argc != ftype->numArgs) {
+		set_error("invalid number of arguments");
+		return -1;
+	}
 	for (int i = 0; i < ftype->numArgs; i++) {
-		int v = i_argv[i];
 		m3stack_t s = &stack[i];
-		*(u32*)(s) = v;
+		switch (ftype->argTypes[i]) {
+		case c_m3Type_i32:
+		    *(i32*)(s) = (i32)(((u64*)i_argv)[i]);
+		    break;
+		case c_m3Type_i64:
+		    *(i64*)(s) = (i64)(((u64*)i_argv)[i]);
+		    break;
+		case c_m3Type_f32:
+		    *(f32*)(s) = (f32)(((u64*)i_argv)[i]);
+		    break;
+		case c_m3Type_f64:
+		    *(f64*)(s) = (f64)(((u64*)i_argv)[i]);
+		    break;
+		default:
+		    set_error("invalid arg type in function signature");
+		    return -1;
+		}
 	}
 	m3StackCheckInit();
 	M3Result call_result = Call(i_function->compiled, stack, runtime->memory.mallocated, d_m3OpDefaultArgs);
-	if(call_result != NULL) {
+	if(call_result != m3Err_none) {
 		set_error(call_result);
 		return -1;
 	}
 	switch (ftype->returnType) {
 		case c_m3Type_i32:
-			result = *(u32*)(stack);
+			*(i32*)o_result = (i32)(stack[0]);
 			break;
 		case c_m3Type_i64:
+			*(i64*)o_result = (i64)(stack[0]);
+			break;
+		case c_m3Type_f32:
+			*(f32*)o_result = (f32)(stack[0]);
+			break;
+		case c_m3Type_f64:
+			*(f64*)o_result = (f64)(stack[0]);
+			break;
+		case c_m3Type_none:
+			break;
 		default:
-			result =  *(u32*)(stack);
+			set_error("unexpected return type");
+			return -1;
 	};
-	return result;
+	return 0;
 }
 
 int get_allocated_memory_length(IM3Runtime i_runtime) {
@@ -100,14 +129,14 @@ u8* get_allocated_memory(IM3Runtime i_runtime) {
 	return m3MemData(i_runtime->memory.mallocated);
 }
 
-const void * native_dynamicFunctionWrapper(IM3Runtime runtime, uint64_t * _sp, void * _mem, uint64_t cookie) {
-    int code = dynamicFunctionWrapper(runtime, _sp, _mem, cookie);
+const void * native_dynamicFunctionWrapper(IM3Runtime runtime, uint64_t * _sp, void * _mem, void * cookie) {
+    int code = dynamicFunctionWrapper(runtime, _sp, _mem, (uint64_t) cookie);
     return code == 0 ? m3Err_none : m3Err_trapExit;
 }
 
-int nextSlot = 0;
+uint64_t nextSlot = 0;
 int attachFunction(IM3Module i_module, char* moduleName, char* functionName, char* signature) {
-    int slot = nextSlot++;
-    m3_LinkRawFunctionEx(i_module, moduleName, functionName, signature, native_dynamicFunctionWrapper, slot);
+    uint64_t slot = nextSlot++;
+    m3_LinkRawFunctionEx(i_module, moduleName, functionName, signature, native_dynamicFunctionWrapper, (void *) slot);
     return slot;
 }
