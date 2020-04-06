@@ -103,9 +103,9 @@ var (
 
 // Config holds the runtime and environment configuration
 type Config struct {
-	Environment    *Environment
-	StackSize      uint
-	EnableWASI     bool
+	Environment *Environment
+	StackSize   uint
+	// EnableWASI     bool
 	EnableSpecTest bool
 }
 
@@ -150,9 +150,9 @@ func (r *Runtime) Load(wasmBytes []byte) (*Module, error) {
 	if result != nil {
 		return nil, errors.New("LinkSpecTest failed")
 	}
-	if r.cfg.EnableWASI {
-		C.m3_LinkWASI(r.Ptr().modules)
-	}
+	// if r.cfg.EnableWASI {
+	// 	C.m3_LinkWASI(r.Ptr().modules)
+	// }
 	m := NewModule((ModuleT)(module))
 	return m, nil
 }
@@ -192,9 +192,9 @@ func (r *Runtime) LoadModule(module *Module) (*Module, error) {
 	if r.cfg.EnableSpecTest {
 		C.m3_LinkSpecTest(r.Ptr().modules)
 	}
-	if r.cfg.EnableWASI {
-		C.m3_LinkWASI(r.Ptr().modules)
-	}
+	// if r.cfg.EnableWASI {
+	// 	C.m3_LinkWASI(r.Ptr().modules)
+	// }
 	return module, nil
 }
 
