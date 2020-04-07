@@ -47,7 +47,7 @@ docker run -it \
         cp -r android /tmp/gomobile/git/go-wasm3/lib/
         cd /tmp/gomobile/git/go-wasm3 && \
         go build && \
-        gomobile bind -androidapi=29 --target android -o /tmp/gomobile/wasm.aar'
+        gomobile bind -androidapi=16 --target android -o /tmp/gomobile/wasm.aar'
     # /bin/bash
 ```
 
