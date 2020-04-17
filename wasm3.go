@@ -1,13 +1,14 @@
 package wasm3
 
 /*
-#cgo CFLAGS: -Iinclude
-#cgo darwin LDFLAGS: -L${SRCDIR}/lib/darwin -lm3
-#cgo !android,linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
-#cgo android,arm LDFLAGS: -L${SRCDIR}/lib/android/armeabi-v7a -lm3 -lm
-#cgo android,arm64 LDFLAGS: -L${SRCDIR}/lib/android/arm64-v8a -lm3 -lm
-#cgo android,386 LDFLAGS: -L${SRCDIR}/lib/android/x86 -lm3 -lm
-#cgo android,amd64 LDFLAGS: -L${SRCDIR}/lib/android/x86_64 -lm3 -lm
+#cgo LDFLAGS: -lm
+// #cgo CFLAGS: -Iinclude
+// #cgo darwin LDFLAGS: -L${SRCDIR}/lib/darwin -lm3
+// #cgo !android,linux LDFLAGS: -L${SRCDIR}/lib/linux -lm3 -lm
+// #cgo android,arm LDFLAGS: -L${SRCDIR}/lib/android/armeabi-v7a -lm3 -lm
+// #cgo android,arm64 LDFLAGS: -L${SRCDIR}/lib/android/arm64-v8a -lm3 -lm
+// #cgo android,386 LDFLAGS: -L${SRCDIR}/lib/android/x86 -lm3 -lm
+// #cgo android,amd64 LDFLAGS: -L${SRCDIR}/lib/android/x86_64 -lm3 -lm
 
 #include "wasm3.h"
 #include "m3_api_libc.h"
@@ -18,7 +19,7 @@ package wasm3
 #include <stdio.h>
 
 typedef uint32_t __wasi_size_t;
-#include "extra/wasi_core.h"
+// #include "extra/wasi_core.h"
 
 IM3Function module_get_function(IM3Module i_module, int index);
 IM3Function module_get_imported_function(IM3Module i_module, int index);

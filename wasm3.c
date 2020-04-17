@@ -140,3 +140,4 @@ int attachFunction(IM3Module i_module, char* moduleName, char* functionName, cha
     m3_LinkRawFunctionEx(i_module, moduleName, functionName, signature, native_dynamicFunctionWrapper, (void *) slot);
     return slot;
 }
+
