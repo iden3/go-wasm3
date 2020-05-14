@@ -93,7 +93,10 @@ func (w *WasiIoVec) GetBufLen() int {
 
 //export dynamicFunctionWrapper
 func dynamicFunctionWrapper(runtime RuntimeT, _sp unsafe.Pointer, _mem unsafe.Pointer, slot uint64) int {
-	return slotsToCallbacks[int(slot)](runtime, _sp, _mem)
+	lock.Lock()
+	fn := slotsToCallbacks[int(slot)]
+	lock.Unlock()
+	return fn(runtime, _sp, _mem)
 }
 
 var (
